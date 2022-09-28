@@ -10,7 +10,7 @@
 #define SERVER_PORT 9999 
 #define MAX_LINE 256
 #define MAX_PENDING 5
-#define MAXNAME 10
+#define MAXNAME 200
 
 int main()
 {
@@ -23,7 +23,7 @@ int main()
 		short type; 
 		char uName[MAXNAME]; 
 		char mName[MAXNAME]; 
-		char data[MAXNAME]; 
+		char data[MAX_LINE]; 
 	}; 
 	struct packet packet_reg;
 
@@ -48,9 +48,6 @@ int main()
 	int s, new_s;
 	int len;
 	int table_index = 0;
-
-
-	
 
 	/* setup passive open */
 	if((s = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -99,8 +96,9 @@ int main()
 			exit(1); 
 		} 
 
+	
 		// Add user to chat list
-		table[table_index].port = clientAddr.sin_port; 
+		table[table_index].port = sin.sin_port; 
 		table[table_index].sockid = new_s; 
 		strcpy(table[table_index].uName, packet_reg.uName); 
 		strcpy(table[table_index].mName, packet_reg.mName); 
@@ -108,8 +106,9 @@ int main()
 		// Clear screen and print chat list
         system("clear");
 		for(int i = 0; i <= table_index; i++){
-			printf("%s %s\n", table[i].mName, table[i].uName);
+			printf("Username:%s Clienthost:%s Port:%d SockID: %d\n", table[i].uName, table[i].mName, table[i].port, table[i].sockid);
 		}
+		table_index++;
 
 		while(1){
 

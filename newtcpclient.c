@@ -9,7 +9,7 @@
 
 #define SERVER_PORT 9999
 #define MAX_LINE 256
-#define MAXNAME 10
+#define MAXNAME 200
 
 int main(int argc, char* argv[])
 {
@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 		short type; 
 		char uName[MAXNAME]; 
 		char mName[MAXNAME]; 
-		char data[MAXNAME]; 
+		char data[MAX_LINE]; 
 	}; 
  	struct packet packet_reg; 
 
@@ -35,20 +35,19 @@ int main(int argc, char* argv[])
 	struct chat_packet chat_pack;
 
 	char *host;
-	char *first_name;
-	char *last_name;
+	char *u_name;
 	char buf[MAX_LINE];
+	char hostbuffer[256];
 	int s;
 	int len;
 	int response;
 
 	/* Validate that the correct number of arguments are added */
-	if(argc == 4){
+	if(argc == 3){
 		host = argv[1];
-		first_name = argv[2];
-		last_name = argv[3];
+		u_name = argv[2];
 	}else{
-		fprintf(stderr, "usage:client server first_name last_name\n");
+		fprintf(stderr, "usage:client server user_name \n");
 		exit(1);
 	}
 
@@ -61,13 +60,9 @@ int main(int argc, char* argv[])
 
 	/* Constructing the registration packet at client */  
   	packet_reg.type = htons(121); 
-	strcpy(packet_reg.mName, first_name);
-	strcpy(packet_reg.uName, last_name);
-
- 	// Call gethostname() method to store the client’s machine name in an 
-	//array called clientname 
-	char hostname[1024];
-    gethostname(hostname, 1024);
+	gethostname(hostbuffer, sizeof(hostbuffer));
+	strcpy(packet_reg.mName, hostbuffer);
+	strcpy(packet_reg.uName, u_name);
 
 	/* active open */
 	if((s = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -81,7 +76,6 @@ int main(int argc, char* argv[])
 	bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
 	sin.sin_port = htons(SERVER_PORT);
 
-	
 	if(connect(s,(struct sockaddr *)&sin, sizeof(sin)) < 0){
 		perror("tcpclient: connect");
 		close(s);
@@ -107,7 +101,7 @@ int main(int argc, char* argv[])
 	}
 
 	/* Prep the chat packet with username */
-	strcpy(chat_pack.uName, first_name);
+	strcpy(chat_pack.uName, u_name);
 
 	/* main loop: get and send lines of text */
 	while(fgets(buf, sizeof(buf), stdin)){
