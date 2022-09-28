@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 	struct hostent *hp;
 	struct sockaddr_in sin;
 
-	/*  structure of the packet */ 
+	/*  structure of the registration packet */ 
 	struct packet{ 
 		short type; 
 		char uName[MAXNAME]; 
@@ -26,19 +26,28 @@ int main(int argc, char* argv[])
 	}; 
  	struct packet packet_reg; 
 
+	/*  structore of the chat packet */
+	struct chat_packet{
+		short type;
+		char uName[MAXNAME];
+		char data[MAX_LINE];
+	};
+	struct chat_packet chat_pack;
+
 	char *host;
 	char *first_name;
 	char *last_name;
 	char buf[MAX_LINE];
 	int s;
 	int len;
+	int response;
 
+	/* Validate that the correct number of arguments are added */
 	if(argc == 4){
 		host = argv[1];
 		first_name = argv[2];
 		last_name = argv[3];
-	}
-	else{
+	}else{
 		fprintf(stderr, "usage:client server first_name last_name\n");
 		exit(1);
 	}
@@ -85,10 +94,51 @@ int main(int argc, char* argv[])
 		exit(1); 
 	} 
 
+	// Pick up registration packet response
+	if(recv(s,&packet_reg,sizeof(packet_reg),0) < 0) { 
+		printf("\n Could not receive registration packet response \n"); 
+		exit(1);
+	}
+
+	// Validate registration response packet type
+	if(ntohs(packet_reg.type) != 221){
+		printf("\n Invalid registration response packet format: %d\n", ntohs(packet_reg.type)); 
+		exit(1);
+	}
+
+	/* Prep the chat packet with username */
+	strcpy(chat_pack.uName, first_name);
+
 	/* main loop: get and send lines of text */
 	while(fgets(buf, sizeof(buf), stdin)){
 		buf[MAX_LINE-1] = '\0';
 		len = strlen(buf) + 1;
-		send(s, buf, len, 0);
+
+		/* load buffer into chat packet and set type to 131 */
+		strcpy(chat_pack.data, buf);
+		chat_pack.type = htons(131); 
+
+		/* Send chat packet to server */
+		if(send(s,&chat_pack,sizeof(chat_pack),0) <0) { 
+			printf("\n Chat send failed\n"); 
+			exit(1); 
+		} else {
+
+			/* Receive chat packet response from server */
+			response = recv(s,&chat_pack,sizeof(chat_pack),0);
+			if(response < 0) { 
+				printf("\n Could not receive registration packet response \n"); 
+				exit(1);
+			} else {
+
+				/* Validate registration response packet type */
+				if(ntohs(chat_pack.type) != 231){
+					printf("\n Invalid chat response packet format: %d\n", ntohs(chat_pack.type)); 
+					exit(1);
+				} 
+			}
+		}
+
+
 	}
 }

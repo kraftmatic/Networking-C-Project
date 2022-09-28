@@ -18,6 +18,7 @@ int main()
 	struct sockaddr_in sin;
 	struct sockaddr_in clientAddr;
 
+	/* structure of the registration packet */
 	struct packet{ 
 		short type; 
 		char uName[MAXNAME]; 
@@ -25,6 +26,14 @@ int main()
 		char data[MAXNAME]; 
 	}; 
 	struct packet packet_reg;
+
+	/*  structore of the chat packet */
+	struct chat_packet{
+		short type;
+		char uName[MAXNAME];
+		char data[MAX_LINE];
+	};
+	struct chat_packet chat;
 
 	/* structure of Registration Table */ 
 	struct registrationTable{ 
@@ -77,10 +86,18 @@ int main()
 			exit(1);
 		}
 
+		// Validate registration packet type
 		if(ntohs(packet_reg.type) != 121){
 			printf("\n Invalid registration packet format: %d\n", ntohs(packet_reg.type)); 
 			exit(1);
 		}
+
+		// Change type to 221 to validate successful registration and respond
+		packet_reg.type = htons(221);	
+		if(send(new_s,&packet_reg,sizeof(packet_reg),0) <0) { 
+			printf("\n Registration response failed\n"); 
+			exit(1); 
+		} 
 
 		// Add user to chat list
 		table[table_index].port = clientAddr.sin_port; 
@@ -94,8 +111,28 @@ int main()
 			printf("%s %s\n", table[i].mName, table[i].uName);
 		}
 
-		while(len = recv(new_s, buf, sizeof(buf), 0)){
-			fputs(buf, stdout);
+		while(1){
+
+			if(recv(new_s,&chat,sizeof(chat),0) < 0) { 
+				printf("\n Could not receive chat packet \n"); 
+				exit(1);
+			} else {
+
+				/* Validate registration response packet type */
+				if(ntohs(chat.type) != 131){
+					printf("\n Invalid chat packet format: %d\n", ntohs(chat.type)); 
+					exit(1);
+				}
+				/* Print chat data to terminal */
+				fputs(chat.data, stdout);
+
+				/* Send chat packet to server after updating type to indicate response */
+				chat.type = htons(231);
+				if(send(new_s,&chat,sizeof(chat),0) <0) { 
+					printf("\n Chat response send failed\n"); 
+					exit(1); 
+				} 
+			}
 		}
 
 		close(new_s);
