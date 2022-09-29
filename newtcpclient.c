@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
 			/* Receive chat packet response from server */
 			response = recv(s,&chat_pack,sizeof(chat_pack),0);
 			if(response < 0) { 
-				printf("\n Could not receive registration packet response \n"); 
+				printf("\n Could not receive chat packet response \n"); 
 				exit(1);
 			} else {
 
@@ -130,6 +130,7 @@ int main(int argc, char* argv[])
 					printf("\n Invalid chat response packet format: %d\n", ntohs(chat_pack.type)); 
 					exit(1);
 				} 
+				printf("%s: %s", chat_pack.uName, chat_pack.data);
 			}
 		}
 
