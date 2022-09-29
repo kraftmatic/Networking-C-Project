@@ -1,0 +1,11 @@
+Script started on 2022-09-28 21:09:42-04:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="118" LINES="58"]
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ ./client localhost nick
+testing
+nick: testing
+my name is nick
+nick: my name is nick
+and it echos co    es correctly.
+nick: and it echoes correctly.
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ exit
+
+Script done on 2022-09-28 21:10:10-04:00 [COMMAND_EXIT_CODE="0"]

@@ -1,0 +1,13 @@
+Script started on 2022-09-28 21:09:47-04:00 [TERM="xterm-256color" TTY="/dev/pts/1" COLUMNS="118" LINES="58"]
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ ./server
+
+Server listening...
+[H[2J[3JUsername:nick Clienthost:nick-virtual-machine Port:3879 SockID: 4
+testing
+my name is nick
+and it echoes correctly.
+
+ Invalid chat packet format: 231
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ exit
+
+Script done on 2022-09-28 21:10:11-04:00 [COMMAND_EXIT_CODE="1"]
