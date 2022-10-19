@@ -24,15 +24,7 @@ int main(int argc, char* argv[])
 		char mName[MAXNAME]; 
 		char data[MAX_LINE]; 
 	}; 
- 	struct packet packet_reg; 
-
-	/*  structore of the chat packet */
-	struct chat_packet{
-		short type;
-		char uName[MAXNAME];
-		char data[MAX_LINE];
-	};
-	struct chat_packet chat_pack;
+ 	struct packet packet; 
 
 	char *host;
 	char *u_name;
@@ -54,20 +46,22 @@ int main(int argc, char* argv[])
 	/* translate host name into peer's IP address */
 	hp = gethostbyname(host);
 	if(!hp){
-		fprintf(stderr, "unkown host: %s\n", host);
+		fprintf(stderr, "unknown host: %s\n", host);
 		exit(1);
 	}
 
 	/* Constructing the registration packet at client */  
-  	packet_reg.type = htons(121); 
+  	packet.type = htons(121); 
 	gethostname(hostbuffer, sizeof(hostbuffer));
-	strcpy(packet_reg.mName, hostbuffer);
-	strcpy(packet_reg.uName, u_name);
+	strcpy(packet.mName, hostbuffer);
+	strcpy(packet.uName, u_name);
 
 	/* active open */
 	if((s = socket(PF_INET, SOCK_STREAM, 0)) < 0){
 		perror("tcpclient: socket");
 		exit(1);
+	} else {
+		printf("Socket established\n");
 	}
 
 	/* build address data structure */
@@ -80,60 +74,86 @@ int main(int argc, char* argv[])
 		perror("tcpclient: connect");
 		close(s);
 		exit(1);
+	} else {
+		printf("Connected to socket\n");
 	}
 
+	printf("Sending packet one.\n");
 	/* Send the registration packet to the server  */ 
- 	if(send(s,&packet_reg,sizeof(packet_reg),0) <0) { 
-		printf("\n Send failed\n"); 
+ 	if(send(s,&packet,sizeof(packet),0) <0) { 
+		printf("\nSend failed\n"); 
 		exit(1); 
 	} 
 
-	// Pick up registration packet response
-	if(recv(s,&packet_reg,sizeof(packet_reg),0) < 0) { 
-		printf("\n Could not receive registration packet response \n"); 
+	printf("Sending packet two.\n");
+	/* Send the registration packet two to the server  */ 
+ 	if(send(s,&packet,sizeof(packet),0) <0) { 
+		printf("\nSend failed\n"); 
+		exit(1); 
+	} 
+
+	printf("Sending packet three.\n");
+	if(send(s,&packet,sizeof(packet),0) <0) { 
+		printf("\nSend failed\n"); 
+		exit(1); 
+	} 
+
+	// Pick up ack packet response
+	if(recv(s,&packet,sizeof(packet),0) < 0) { 
+		printf("\nCould not receive registration packet response \n"); 
 		exit(1);
+	} else {
+		printf("ACK received successfully \n\n"); 
 	}
 
 	// Validate registration response packet type
-	if(ntohs(packet_reg.type) != 221){
-		printf("\n Invalid registration response packet format: %d\n", ntohs(packet_reg.type)); 
-		exit(1);
-	}
+	// if(ntohs(packet.type) != 221){
+	// 	printf("\n Invalid registration response packet format: %d\n", ntohs(packet.type)); 
+	// 	exit(1);
+	// }
 
 	/* Prep the chat packet with username */
-	strcpy(chat_pack.uName, u_name);
+	// strcpy(packet.uName, u_name);
 
 	/* main loop: get and send lines of text */
-	while(fgets(buf, sizeof(buf), stdin)){
-		buf[MAX_LINE-1] = '\0';
-		len = strlen(buf) + 1;
+	while(1){
 
-		/* load buffer into chat packet and set type to 131 */
-		strcpy(chat_pack.data, buf);
-		chat_pack.type = htons(131); 
 
-		/* Send chat packet to server */
-		if(send(s,&chat_pack,sizeof(chat_pack),0) <0) { 
-			printf("\n Chat send failed\n"); 
-			exit(1); 
+		/* Continually read for multicaster messages */
+		if(recv(s,&packet,sizeof(packet),0) < 0) { 
+			printf("\nCould not receive data packet \n"); 
+			exit(1);
 		} else {
-
-			/* Receive chat packet response from server */
-			response = recv(s,&chat_pack,sizeof(chat_pack),0);
-			if(response < 0) { 
-				printf("\n Could not receive chat packet response \n"); 
-				exit(1);
-			} else {
-
-				/* Validate registration response packet type */
-				if(ntohs(chat_pack.type) != 231){
-					printf("\n Invalid chat response packet format: %d\n", ntohs(chat_pack.type)); 
-					exit(1);
-				} 
-				printf("%s: %s", chat_pack.uName, chat_pack.data);
-			}
+			printf("%s", packet.data);
 		}
 
+		// buf[MAX_LINE-1] = '\0';
+		// len = strlen(buf) + 1;
 
+		// /* load buffer into chat packet and set type to 131 */
+		// strcpy(packet.data, buf);
+		// packet.type = htons(131); 
+
+		// /* Send chat packet to server */
+		// if(send(s,&packet,sizeof(packet),0) <0) { 
+		// 	printf("\n Chat send failed\n"); 
+		// 	exit(1); 
+		// } else {
+
+		// 	/* Receive chat packet response from server */
+		// 	response = recv(s,&packet,sizeof(packet),0);
+		// 	if(response < 0) { 
+		// 		printf("\n Could not receive chat packet response \n"); 
+		// 		exit(1);
+		// 	} else {
+
+		// 		/* Validate registration response packet type */
+		// 		if(ntohs(packet.type) != 231){
+		// 			printf("\n Invalid chat response packet format: %d\n", ntohs(packet.type)); 
+		// 			exit(1);
+		// 		} 
+		// 		printf("%s: %s", packet.uName, packet.data);
+		// 	}
+		// }
 	}
 }
