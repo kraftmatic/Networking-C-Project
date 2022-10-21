@@ -17,6 +17,7 @@
 /* structure of the registration packet */
 struct packet{ 
 	short type; 
+	short seqNumber;
 	char uName[MAXNAME]; 
 	char mName[MAXNAME]; 
 	char data[MAX_LINE]; 
@@ -39,6 +40,9 @@ pthread_mutex_t my_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* Declare global row counter for registration table */
 int table_index = 0;
 
+/* Declare initial sequence number for text package tracking*/
+int seqNumber = 0;
+
 /* Declare socket variables to be accessible from main and join_handler */
 int s, new_s, port;
 
@@ -55,7 +59,6 @@ void *join_handler(void* Data){
 		printf("JOIN_HANDLER: Could not add user\n");
 		pthread_exit(NULL);
 	}
-	// Wait for registration packet and sent ack
 
 	// lock table
 	pthread_mutex_lock(&my_mutex);
@@ -67,8 +70,13 @@ void *join_handler(void* Data){
 	strcpy(table[table_index].mName, packet_reg.mName); 
 	table_index++;
 
-	printf("JOIN_HANDLER: Added user %d to list\n", table_index);
+	printf("JOIN_HANDLER: Added user %d to list at sequence %d\n", table_index, seqNumber);
 	printf("JOIN_HANDLER: Sending ACK to user %d\n", table_index);
+ 
+	// Populate sequence number for ACK message
+	packet_reg.seqNumber = seqNumber;
+
+	// Send ACK message to client
 	if(send(new_s,&packet_reg,sizeof(packet_reg),0) <0) { 
 		printf("JOIN_HANDLER: ACK send failed for socket %d\n", new_s); 
 	}
@@ -89,23 +97,29 @@ void *chat_multicaster(){
 	char text[256];
 	int fd, nread;
 
+	// Open the text file
 	filename = "input.txt";
 	fd = open(filename, O_RDONLY,0);
 
 	while(1){
 
-		
-
 		printf("CHAT_MULTICASTER: %d users detected\n", table_index);
 		if (table_index > 0){
-			read(fd, text, 256);
 
+			// Scan in a chunk of text to be transmitted
+			read(fd, text, 255);
+
+			// Create the packet to send to the clients
 			struct packet data_packet;
 			strcpy(data_packet.data, text);
+			data_packet.seqNumber = seqNumber;
 
 			// Lock table during reads
 			pthread_mutex_lock(&my_mutex);
 
+			// Iterate over the registration table and send the packet to all
+			// registered sockets
+			printf("CHAT_MULTICASTER: Packet %d loaded into buffer\n", seqNumber);
 			for(int i = 0; i < table_index; i++){
 				printf("CHAT_MULTICASTER: Sending to client on socket %d\n", table[i].sockId);
 				if(send(table[i].sockId,&data_packet,sizeof(data_packet),0) <0) { 
@@ -115,7 +129,9 @@ void *chat_multicaster(){
 
 			//Unlock table
 			pthread_mutex_unlock(&my_mutex);
-
+			
+			//Increment sequence number
+			seqNumber++;
 		}
 
 		//Sleep for 5 seconds

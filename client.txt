@@ -1,0 +1,38 @@
+Script started on 2022-10-21 14:27:20-04:00 [TERM="xterm-256color" TTY="/dev/pts/8" COLUMNS="118" LINES="35"]
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ ./client localhost nick
+Socket established
+Connected to socket
+Sending packet one.
+Sending packet two.
+Sending packet three.
+ACK received successfully.  Joining at sequence 0
+
+The Hitch Hiker's Guide to the Galaxy 
+
+for Jonny Brock and Clare Gorst 
+and all other Arlingtoniansfor tea, sympathy, and a sofa
+
+
+
+Far out in the uncharted backwaters of the unfashionable  end  of
+the  western  spiral  arm  of  the Galaxy lies a small unregarded
+yellow sun.
+
+Orbiting this at a distance of roughly ninety-two  million  miles
+is  an  utterly insignificant little blue green planet whose ape-
+descended life forms are so amazingly primitive that  they  still
+think digital watches are a pretty neat idea.
+
+This planet has - or rather had - a problem, which was this: most
+of  the  people  on  it were unhappy for pretty much of the time.
+Many solutions were suggested for this problem, but most of these
+were  largely  concerned with the movements of small green pieces
+of paper, which is odd because on the whole it wasn't  the  small
+green pieces of paper that were unhappy.
+
+And so the problem remained; lots of the people  were  mean,  and
+^C
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ exit
+exit
+
+Script done on 2022-10-21 14:27:50-04:00 [COMMAND_EXIT_CODE="130"]

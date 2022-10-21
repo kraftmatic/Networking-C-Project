@@ -19,7 +19,8 @@ int main(int argc, char* argv[])
 
 	/*  structure of the registration packet */ 
 	struct packet{ 
-		short type; 
+		short type;
+		short seqNumber; 
 		char uName[MAXNAME]; 
 		char mName[MAXNAME]; 
 		char data[MAX_LINE]; 
@@ -93,6 +94,7 @@ int main(int argc, char* argv[])
 	} 
 
 	printf("Sending packet three.\n");
+	/* Send the registration packet three to the server  */ 
 	if(send(s,&packet,sizeof(packet),0) <0) { 
 		printf("\nSend failed\n"); 
 		exit(1); 
@@ -103,21 +105,12 @@ int main(int argc, char* argv[])
 		printf("\nCould not receive registration packet response \n"); 
 		exit(1);
 	} else {
-		printf("ACK received successfully \n\n"); 
+		printf("ACK received successfully.  Joining at sequence %d\n\n", packet.seqNumber); 
 	}
 
-	// Validate registration response packet type
-	// if(ntohs(packet.type) != 221){
-	// 	printf("\n Invalid registration response packet format: %d\n", ntohs(packet.type)); 
-	// 	exit(1);
-	// }
-
-	/* Prep the chat packet with username */
-	// strcpy(packet.uName, u_name);
 
 	/* main loop: get and send lines of text */
 	while(1){
-
 
 		/* Continually read for multicaster messages */
 		if(recv(s,&packet,sizeof(packet),0) < 0) { 
@@ -127,33 +120,5 @@ int main(int argc, char* argv[])
 			printf("%s", packet.data);
 		}
 
-		// buf[MAX_LINE-1] = '\0';
-		// len = strlen(buf) + 1;
-
-		// /* load buffer into chat packet and set type to 131 */
-		// strcpy(packet.data, buf);
-		// packet.type = htons(131); 
-
-		// /* Send chat packet to server */
-		// if(send(s,&packet,sizeof(packet),0) <0) { 
-		// 	printf("\n Chat send failed\n"); 
-		// 	exit(1); 
-		// } else {
-
-		// 	/* Receive chat packet response from server */
-		// 	response = recv(s,&packet,sizeof(packet),0);
-		// 	if(response < 0) { 
-		// 		printf("\n Could not receive chat packet response \n"); 
-		// 		exit(1);
-		// 	} else {
-
-		// 		/* Validate registration response packet type */
-		// 		if(ntohs(packet.type) != 231){
-		// 			printf("\n Invalid chat response packet format: %d\n", ntohs(packet.type)); 
-		// 			exit(1);
-		// 		} 
-		// 		printf("%s: %s", packet.uName, packet.data);
-		// 	}
-		// }
 	}
 }
