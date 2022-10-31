@@ -6,54 +6,179 @@
 #include<string.h>
 #include<stdlib.h>
 #include<unistd.h>
+#include<pthread.h>
+#include <fcntl.h>
 
 #define SERVER_PORT 9999 
 #define MAX_LINE 256
 #define MAX_PENDING 5
-#define MAXNAME 200
+#define MAXNAME 12
+
+/* structure of the client packet */
+struct clientPacket{ 
+	short type; 
+	char uName[MAXNAME]; 
+	char data[MAX_LINE]; 
+}; 
+
+/* structure of server packet*/
+struct serverPacket{ 
+	short type;
+	char data[MAX_LINE];
+	char dataList[10][12];
+}; 
+
+/* structure of Registration Table */ 
+struct registrationTable{ 
+	int port; 
+	int sockId; 
+	char roomName[MAXNAME];
+ 	char uName[MAXNAME]; 
+}; 
+
+/* Declare global registration table */
+struct registrationTable table[10];
+
+/* Declare global mutex variable */
+pthread_mutex_t my_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Declare global row counter for registration table */
+int table_index = 0;
+
+/* Declare initial sequence number for text package tracking*/
+int seqNumber = 0;
+
+/* Declare socket variables to be accessible from main and join_handler */
+int s, new_s, port;
+
+void *client_handler(void* Data){
+
+	printf("CLIENT_HANDLER: In joinhandler thread\n");
+
+	int newsock = *(int*) Data;
+	char roomName[12];
+	struct clientPacket clientPacket;
+
+	// Receive initial connection package and validate type
+	if(recv(newsock, &clientPacket, sizeof(clientPacket), 0) >= 0){
+		if (ntohs(clientPacket.type) != 121){
+			printf("CLIENT_HANDLER: Bad connection request type %d, %s\n", 
+				ntohs(clientPacket.type), clientPacket.uName);
+			pthread_exit(NULL);
+		}
+		printf("CLIENT_HANDLER: %s validated\n", clientPacket.uName);
+	} else {
+		printf("CLIENT_HANDLER: Could not add user %s\n", clientPacket.uName);
+		pthread_exit(NULL);
+	}
+
+	struct serverPacket serverPacket;
+	serverPacket.type = htons(221);
+	strcpy(serverPacket.dataList[0], "test");
+	strcpy(serverPacket.dataList[1], "test2");
+
+	// Send ACK message to client
+	if(send(new_s,&serverPacket,sizeof(serverPacket),0) <0) { 
+		printf("CLIENT_HANDLER: ACK send failed for socket %d\n", new_s); 
+	}
+
+	// Receive room request packet and validate type
+	printf("CLIENT_HANDLER: Waiting for room request packet\n");
+	if(recv(newsock, &clientPacket, sizeof(clientPacket), 0) >= 0){
+		if (ntohs(clientPacket.type) != 131){
+			printf("CLIENT_HANDLER: Bad connection request type %d, %s\n", 
+				ntohs(clientPacket.type), clientPacket.uName);
+			pthread_exit(NULL);
+		}
+		printf("CLIENT_HANDLER: %s requested to join %s\n", 
+			clientPacket.uName, clientPacket.data);
+		strcpy(roomName, clientPacket.data);
+	} else {
+		printf("CLIENT_HANDLER: Could not add user\n");
+		pthread_exit(NULL);
+	}
+
+	// lock table
+	pthread_mutex_lock(&my_mutex);
+	
+	// Update the reg table
+	table[table_index].port = port; 
+	table[table_index].sockId = new_s; 
+	strcpy(table[table_index].uName, clientPacket.uName); 
+	strcpy(table[table_index].roomName, roomName); 
+	table_index++;
+
+	//unlock table
+	pthread_mutex_unlock(&my_mutex);
+
+	printf("CLIENT_HANDLER: Added user %d to list at sequence %d\n", table_index, seqNumber);
+	printf("CLIENT_HANDLER: Sending ACK to user %d\n", table_index);
+
+	// Send ACK message to client with users
+	serverPacket.type = htons(231);
+	if(send(new_s,&serverPacket,sizeof(serverPacket),0) <0) { 
+		printf("CLIENT_HANDLER: ACK send failed for socket %d\n", new_s); 
+	}
+
+	while(1){
+
+		// Listen for incoming messages from the client
+		if(recv(newsock, &clientPacket, sizeof(clientPacket), 0) >= 0){
+			if (ntohs(clientPacket.type) != 141){
+				printf("CLIENT_HANDLER: Bad connection request type %d, %s\n", 
+					ntohs(clientPacket.type), clientPacket.uName);
+				pthread_exit(NULL);
+			}
+		} else {
+			printf("ERROR:  Lost connection to server...");
+			pthread_exit(NULL);
+		}
+
+		// build message packet
+		serverPacket.type = htons(241);
+		strcpy(serverPacket.data, strcat(strcat(clientPacket.uName, ": "), clientPacket.data));
+
+		// lock table during message sending
+		pthread_mutex_lock(&my_mutex);
+	
+		// Scan for users in same room and send message
+		for(int i = 0; i < table_index; i++){
+			if (newsock != table[i].sockId){
+				if (!strcmp(table[i].roomName, roomName)){
+					if(send(table[i].sockId,&serverPacket,sizeof(serverPacket),0) <0) { 
+						printf("CLIENT_HANDLER: Send failed for socket %d\n", table[i].sockId); 
+					} else {
+						printf("CLIENT_HANDLER: Send success to socket %d\n", table[i].sockId);
+					}
+				}
+			}
+		}
+
+		//unlock table
+		pthread_mutex_unlock(&my_mutex);
+	}
+}
 
 int main()
 {
+	int currentThread = 0;
 
-	struct sockaddr_in sin;
+	/* Allocate variable memory */
 	struct sockaddr_in clientAddr;
+	struct clientPacket clientPacket;
 
-	/* structure of the registration packet */
-	struct packet{ 
-		short type; 
-		char uName[MAXNAME]; 
-		char mName[MAXNAME]; 
-		char data[MAX_LINE]; 
-	}; 
-	struct packet packet_reg;
-
-	/*  structore of the chat packet */
-	struct chat_packet{
-		short type;
-		char uName[MAXNAME];
-		char data[MAX_LINE];
-	};
-	struct chat_packet chat;
-
-	/* structure of Registration Table */ 
-	struct registrationTable{ 
-		int port; 
-		int sockid; 
-		char mName[MAXNAME]; 
-		char uName[MAXNAME]; 
-	}; 
-	struct registrationTable table[10];
+	/* Reserve memory for an array of chat_handler threads */
+	pthread_t threads[100];
 
 	char buf[MAX_LINE];
-	int s, new_s;
 	int len;
-	int table_index = 0;
+	struct sockaddr_in sin;
 
 	/* setup passive open */
 	if((s = socket(PF_INET, SOCK_STREAM, 0)) < 0){
 		perror("tcpserver: socket");
 		exit(1);
-	}
+	} 
 
 	/* build address data structure */
 	bzero((char*)&sin, sizeof(sin));
@@ -67,73 +192,24 @@ int main()
 		exit(1);
 	}
 	listen(s, MAX_PENDING);
-	printf("\nServer listening...\n");
+	printf("MAIN: Server listening...\n");
 
 
 	/* wait for connection, then receive and print text */
 	while(1){
+		ssize_t response;
+		printf("MAIN: Waiting on client connection\n");
 		if((new_s = accept(s, (struct sockaddr *)&clientAddr, &len)) < 0){
 			perror("tcpserver: accept");
 			exit(1);
+		} else {
+			printf("MAIN: Client connected on socket %d\n", new_s);
 		}
 
-		// Pick up registration packet
-		if(recv(new_s,&packet_reg,sizeof(packet_reg),0) < 0) { 
-			printf("\n Could not receive first registration packet \n"); 
-			exit(1);
-		}
+		// Send socket to join_handler thread
+		pthread_create(&threads[currentThread],NULL,client_handler,&new_s);
+		currentThread++;
 
-		// Validate registration packet type
-		if(ntohs(packet_reg.type) != 121){
-			printf("\n Invalid registration packet format: %d\n", ntohs(packet_reg.type)); 
-			exit(1);
-		}
-
-		// Change type to 221 to validate successful registration and respond
-		packet_reg.type = htons(221);	
-		if(send(new_s,&packet_reg,sizeof(packet_reg),0) <0) { 
-			printf("\n Registration response failed\n"); 
-			exit(1); 
-		} 
-
-	
-		// Add user to chat list
-		table[table_index].port = sin.sin_port; 
-		table[table_index].sockid = new_s; 
-		strcpy(table[table_index].uName, packet_reg.uName); 
-		strcpy(table[table_index].mName, packet_reg.mName); 
-
-		// Clear screen and print chat list
-        system("clear");
-		for(int i = 0; i <= table_index; i++){
-			printf("Username:%s Clienthost:%s Port:%d SockID: %d\n", table[i].uName, table[i].mName, table[i].port, table[i].sockid);
-		}
-		table_index++;
-
-		while(1){
-
-			if(recv(new_s,&chat,sizeof(chat),0) < 0) { 
-				printf("\n Could not receive chat packet \n"); 
-				exit(1);
-			} else {
-
-				/* Validate registration response packet type */
-				if(ntohs(chat.type) != 131){
-					printf("\n Invalid chat packet format: %d\n", ntohs(chat.type)); 
-					exit(1);
-				}
-				/* Print chat data to terminal */
-				fputs(chat.data, stdout);
-
-				/* Send chat packet to server after updating type to indicate response */
-				chat.type = htons(231);
-				if(send(new_s,&chat,sizeof(chat),0) <0) { 
-					printf("\n Chat response send failed\n"); 
-					exit(1); 
-				} 
-			}
-		}
-
-		close(new_s);
 	}
 }
+
