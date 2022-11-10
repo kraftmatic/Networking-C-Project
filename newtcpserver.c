@@ -13,6 +13,8 @@
 #define MAX_LINE 256
 #define MAX_PENDING 5
 #define MAXNAME 12
+#define MAX_ROOMS 10
+#define MAX_USERS 100
 
 /* structure of the client packet */
 struct clientPacket{ 
@@ -36,8 +38,10 @@ struct registrationTable{
  	char uName[MAXNAME]; 
 }; 
 
-/* Declare global registration table */
-struct registrationTable table[10];
+/* Declare global registration table and room list */
+struct registrationTable table[MAX_USERS];
+char roomList[MAX_ROOMS][MAXNAME];
+
 
 /* Declare global mutex variable */
 pthread_mutex_t my_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -72,10 +76,12 @@ void *client_handler(void* Data){
 		pthread_exit(NULL);
 	}
 
+	// create server packet with available room list
 	struct serverPacket serverPacket;
 	serverPacket.type = htons(221);
-	strcpy(serverPacket.dataList[0], "test");
-	strcpy(serverPacket.dataList[1], "test2");
+	for(int index = 0; index < MAX_ROOMS; index++){
+		strcpy(serverPacket.dataList[index], roomList[index]);
+	}
 
 	// Send ACK message to client
 	if(send(new_s,&serverPacket,sizeof(serverPacket),0) <0) { 
@@ -100,6 +106,22 @@ void *client_handler(void* Data){
 
 	// lock table
 	pthread_mutex_lock(&my_mutex);
+
+	// scan existing rooms and add to list if doesn't exist
+	for(int index = 0; index < MAX_ROOMS; index++ ){
+		
+		// if the entry is blank we've hit the end of the list and haven't found
+		// this room.  Add the room to the list
+		if(!strcmp(roomList[index],"")){
+			strcpy(roomList[index], roomName);
+			break;
+		}
+		// if there is an entry, ensure it is unique otherwise the room exists and
+		// we can exit the loop
+		if(!strcmp(roomList[index], roomName)){
+			break;
+		}
+	}
 	
 	// Update the reg table
 	table[table_index].port = port; 
@@ -108,14 +130,40 @@ void *client_handler(void* Data){
 	strcpy(table[table_index].roomName, roomName); 
 	table_index++;
 
+	// Send message to all room members that the user has joined
+	serverPacket.type = htons(241);
+	char message[100] = "";
+	strcat(message, clientPacket.uName);
+	strcat(message, " has joined the room!\n");
+	strcpy(serverPacket.data, message);
+	for(int i = 0; i < table_index; i++){
+		if (newsock != table[i].sockId){
+			if (!strcmp(table[i].roomName, roomName)){
+				if(send(table[i].sockId,&serverPacket,sizeof(serverPacket),0) <0) { 
+					printf("CLIENT_HANDLER: Send failed for socket %d\n", table[i].sockId); 
+				} else {
+					printf("CLIENT_HANDLER: Send success to socket %d\n", table[i].sockId);
+				}
+			}
+		}
+	}
+
 	//unlock table
 	pthread_mutex_unlock(&my_mutex);
 
-	printf("CLIENT_HANDLER: Added user %d to list at sequence %d\n", table_index, seqNumber);
-	printf("CLIENT_HANDLER: Sending ACK to user %d\n", table_index);
-
-	// Send ACK message to client with users
+	printf("CLIENT_HANDLER: Sending ACK to user %s\n", clientPacket.uName);
+	// Send ACK message to client with users but first clear dataList
+	for(int index = 0; index < MAX_ROOMS; index++){
+		strcpy(serverPacket.dataList[index], "");
+	}
 	serverPacket.type = htons(231);
+	int userIndex = 0;
+	for(int index = 0; index < MAX_USERS; index++){
+		if(!strcmp(table[index].roomName, roomName)){
+			strcpy(serverPacket.dataList[userIndex], table[index].uName);
+			userIndex++;
+		}
+	}
 	if(send(new_s,&serverPacket,sizeof(serverPacket),0) <0) { 
 		printf("CLIENT_HANDLER: ACK send failed for socket %d\n", new_s); 
 	}
@@ -168,7 +216,7 @@ int main()
 	struct clientPacket clientPacket;
 
 	/* Reserve memory for an array of chat_handler threads */
-	pthread_t threads[100];
+	pthread_t threads[MAX_USERS];
 
 	char buf[MAX_LINE];
 	int len;

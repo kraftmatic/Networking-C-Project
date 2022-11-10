@@ -33,7 +33,6 @@ void *chat_receiver(void* Data){
 	int newsock = *(int*) Data;
 
 	// Receive initial connection package and validate type
-	printf("Receiving on socket %d\n", newsock);
 	if(recv(newsock, &serverPacket, sizeof(serverPacket), 0) >= 0){
 		if (ntohs(serverPacket.type) != 231){
 			printf("JOIN_HANDLER: Bad connection request type %d\n", 
@@ -45,6 +44,17 @@ void *chat_receiver(void* Data){
 		pthread_exit(NULL);
 	}
 
+	// clear screen and show users current in the room
+	printf("\e[1;1H\e[2J");
+	printf("Users currently in the room:\n");
+	for(int index = 0; index < 10; index++){
+		if(strcmp(serverPacket.dataList[index],"")){
+			printf("%s\n", serverPacket.dataList[index]);
+		}
+	}
+	printf("\n");
+
+	// enter listener loop
 	while(1){
 		if(recv(newsock, &serverPacket, sizeof(serverPacket), 0) >= 0){
 			if (ntohs(serverPacket.type) != 241){
@@ -137,16 +147,24 @@ int main(int argc, char* argv[])
 	}
 
 	// Print out a list of available rooms
-	printf("\nRoom List: \n");
+	printf("\e[1;1H\e[2J");
+	printf("Welcome to the chat server!\n\n");
+
 	for(int i = 0; i < 10; i++){
+		if ((!strcmp(serverPacket.dataList[i], "")) && i == 0){
+			printf("No rooms found!\n");
+			break;
+		} else if (i == 0){
+			printf("\nRoom List: \n");
+		}
 		if (strcmp(serverPacket.dataList[i], "")){
-			printf("%s\n", serverPacket.dataList[i]);
+			printf("%s", serverPacket.dataList[i]);
 		}
 	}
 
 	// Prompt user for room to enter
 	char roomName[12];
-    printf("Enter Room Name: ");
+    printf("\nEnter Room Name: ");
     fgets(roomName, sizeof(roomName), stdin);  // read string
 
 	clientPacket.type = htons(131);
@@ -160,6 +178,7 @@ int main(int argc, char* argv[])
 	pthread_create(&threads[0],NULL,chat_receiver,&s);
 
 	sleep(1);
+	
 	/* main loop: send lines of text */
 	while(fgets(buf, sizeof(buf), stdin)){
 		buf[MAX_LINE-1] = '\0';
