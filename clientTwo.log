@@ -1,0 +1,20 @@
+Script started on 2022-11-10 22:13:46-05:00 [TERM="xterm-256color" TTY="/dev/pts/2" COLUMNS="118" LINES="28"]
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ exit./server [5Pexit./client localhost maria
+[1;1H[2JWelcome to the chat server!
+
+
+Room List: 
+test
+
+Enter Room Name: test
+[1;1H[2JUsers currently in the room:
+nick
+maria
+
+nick: hi maria
+hi there
+^C
+]0;nick@nick-virtual-machine: ~/Desktop/networking[01;32mnick@nick-virtual-machine[00m:[01;34m~/Desktop/networking[00m$ exit
+exit
+
+Script done on 2022-11-10 22:14:08-05:00 [COMMAND_EXIT_CODE="130"]
